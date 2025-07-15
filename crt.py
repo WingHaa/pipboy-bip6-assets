@@ -3,34 +3,37 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
-
 def apply_pipboy_glow(image_path, output_path):
     img = Image.open(image_path).convert("RGBA")
     data = np.array(img)
 
-    # Extract alpha channel
     alpha = data[..., 3]
-
-    # Create green-tinted version only where image is white-ish (non-transparent)
     white_mask = (data[..., 0:3] > 200).all(axis=-1) & (alpha > 0)
 
-    # Replace color with green (Pip-Boy style)
-    data[..., 0] = np.where(white_mask, 134, data[..., 0])      # Red → 0
-    data[..., 1] = np.where(white_mask, 254, data[..., 1])    # Green → 255
-    data[..., 2] = np.where(white_mask, 0, data[..., 2])      # Blue → 0
+    data[..., 0] = np.where(white_mask, 134, data[..., 0])
+    data[..., 1] = np.where(white_mask, 254, data[..., 1])
+    data[..., 2] = np.where(white_mask, 0, data[..., 2])
 
     img = Image.fromarray(data).convert("RGBA")
 
-    # Slight glow blur (optional)
+    # Optional glow blur
     img = img.filter(ImageFilter.GaussianBlur(radius=1))
 
-    # Add scanlines (on top of green part only)
+    # Create a scanline image for the whole image
     scanline_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(scanline_overlay)
     for y in range(0, img.height, 4):
-        draw.line((0, y, img.width, y), fill=(0, 0, 0, 16))  # semi-transparent lines
+        draw.line((0, y, img.width, y), fill=(0, 0, 0, 16))
 
-    img = Image.alpha_composite(img, scanline_overlay)
+    # Apply mask to restrict scanlines to only green area
+    # Convert white_mask to PIL Image in 'L' mode
+    mask = Image.fromarray((white_mask * 255).astype(np.uint8)).convert('L')
+
+    # Apply the mask to the scanlines
+    scanline_overlay_masked = Image.composite(scanline_overlay, Image.new("RGBA", img.size, (0, 0, 0, 0)), mask)
+
+    img = Image.alpha_composite(img, scanline_overlay_masked)
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path)
 
