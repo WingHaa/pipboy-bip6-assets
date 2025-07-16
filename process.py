@@ -46,13 +46,11 @@ def crop_resize_pad(image_path, trim_width, trim_height):
     bottom = min(center_y + trim_height // 2, height)
 
     cropped = img.crop((left, top, right, bottom))
-    cropped.thumbnail(target_size, Image.Resampling.LANCZOS)
+    target_height = 196
+    orig_w, orig_h = cropped.size
+    new_w = int((target_height / orig_h) * orig_w)
 
-    canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
-    offset_x = (target_size[0] - cropped.width) // 2
-    offset_y = (target_size[1] - cropped.height) // 2
-    canvas.paste(cropped, (offset_x, offset_y))
-    return canvas
+    return cropped.resize((new_w, target_height), Image.Resampling.LANCZOS)
 
 
 def apply_pipboy_glow(img):
